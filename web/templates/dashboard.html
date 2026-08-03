@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — AI-NIDS{% endblock %}
+{% block content %}
+
+<div class="card">
+  <h2>Overview</h2>
+  <div class="stat-grid">
+    <div class="stat"><div class="value">{{ alerts|length }}</div><div class="label">Recent Alerts</div></div>
+    <div class="stat"><div class="value">{{ review_queue|length }}</div><div class="label">In Review Queue</div></div>
+    <div class="stat"><div class="value">{{ role }}</div><div class="label">Your Role</div></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Recent Alerts (Real-Time View)</h2>
+  <table>
+    <tr><th>ID</th><th>Timestamp</th><th>Category</th><th>Confidence</th>
+        <th>Source</th><th>Destination</th><th>Status</th><th></th></tr>
+    {% for a in alerts %}
+    <tr>
+      <td>{{ a.id }}</td>
+      <td>{{ a.timestamp }}</td>
+      <td><span class="badge {{ a.attack_category }}">{{ a.attack_category }}</span></td>
+      <td>{{ "%.2f"|format(a.confidence) }}</td>
+      <td>{{ a.src_ip }}:{{ a.src_port }}</td>
+      <td>{{ a.dst_ip }}:{{ a.dst_port }}</td>
+      <td><span class="badge {{ a.status }}">{{ a.status }}</span></td>
+      <td>
+        {% if a.status != 'acknowledged' %}
+        <form class="inline" method="POST" action="/alerts/{{ a.id }}/acknowledge">
+          <button type="submit">Ack</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="8" style="color:var(--muted)">No alerts yet — train a model and run inference to populate this view.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+
+<div class="card">
+  <h2>Analyst Review Queue (below ambiguity threshold δ)</h2>
+  <table>
+    <tr><th>ID</th><th>Timestamp</th><th>Category</th><th>Confidence</th><th>Source</th><th>Destination</th></tr>
+    {% for a in review_queue %}
+    <tr>
+      <td>{{ a.id }}</td><td>{{ a.timestamp }}</td>
+      <td><span class="badge {{ a.attack_category }}">{{ a.attack_category }}</span></td>
+      <td>{{ "%.2f"|format(a.confidence) }}</td>
+      <td>{{ a.src_ip }}:{{ a.src_port }}</td>
+      <td>{{ a.dst_ip }}:{{ a.dst_port }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6" style="color:var(--muted)">Nothing pending review.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+
+<div class="card">
+  <h2>Export</h2>
+  <a class="btn" href="/export/csv">Export CSV</a>
+  <a class="btn secondary" href="/export/pdf" style="margin-left:8px;">Export PDF</a>
+</div>
+
+{% if role == 'admin' %}
+<div class="card">
+  <h2>Administrator Controls</h2>
+
+  <h3 style="font-size:13px;color:var(--muted)">Retrain models</h3>
+  <form method="POST" action="/admin/retrain">
+    <input type="text" name="csv_path" placeholder="/path/to/KDDTrain+.csv" style="width:320px">
+    <button type="submit">Retrain</button>
+  </form>
+
+  <h3 style="font-size:13px;color:var(--muted);margin-top:18px;">Ambiguity threshold (δ)</h3>
+  <form method="POST" action="/admin/threshold">
+    <input type="number" step="0.01" min="0" max="1" name="delta" placeholder="0.60">
+    <button type="submit">Update</button>
+  </form>
+
+  <h3 style="font-size:13px;color:var(--muted);margin-top:18px;">Create user</h3>
+  <form method="POST" action="/admin/users">
+    <input type="text" name="username" placeholder="username">
+    <input type="password" name="password" placeholder="password">
+    <select name="role">
+      <option value="analyst">analyst</option>
+      <option value="admin">admin</option>
+    </select>
+    <button type="submit">Create</button>
+  </form>
+</div>
+{% endif %}
+
+{% endblock %}

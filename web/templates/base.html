@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>{% block title %}AI-NIDS{% endblock %}</title>
+<style>
+  :root {
+    --bg: #0b0e14; --panel: #131826; --border: #232c3d;
+    --text: #d7dde8; --muted: #7c8aa5; --accent: #3ddc97;
+    --danger: #ff5c5c; --warn: #f5b942; --info: #4fa3ff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif; font-size: 14px;
+  }
+  header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 14px 24px; background: var(--panel); border-bottom: 1px solid var(--border);
+  }
+  header h1 { font-size: 16px; margin: 0; letter-spacing: 0.5px; }
+  header h1 span { color: var(--accent); }
+  nav a {
+    color: var(--muted); text-decoration: none; margin-left: 18px; font-size: 13px;
+  }
+  nav a:hover { color: var(--accent); }
+  main { padding: 24px; max-width: 1200px; margin: 0 auto; }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+    padding: 18px; margin-bottom: 20px;
+  }
+  .card h2 { margin-top: 0; font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: 600; }
+  .badge { padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+  .badge.DoS, .badge.Probe, .badge.R2L, .badge.U2R { background: rgba(255,92,92,0.15); color: var(--danger); }
+  .badge.Normal { background: rgba(61,220,151,0.15); color: var(--accent); }
+  .badge.review_queue { background: rgba(245,185,66,0.15); color: var(--warn); }
+  .badge.alerted { background: rgba(255,92,92,0.15); color: var(--danger); }
+  .badge.acknowledged { background: rgba(79,163,255,0.15); color: var(--info); }
+  form.inline { display: inline; }
+  button, .btn {
+    background: var(--accent); color: #05130d; border: none; padding: 6px 12px;
+    border-radius: 5px; font-weight: 600; cursor: pointer; font-size: 12px;
+  }
+  button.secondary { background: var(--border); color: var(--text); }
+  input, select {
+    background: #0e1320; border: 1px solid var(--border); color: var(--text);
+    padding: 6px 8px; border-radius: 4px; font-size: 13px;
+  }
+  .flash { padding: 10px 14px; border-radius: 6px; margin-bottom: 14px; font-size: 13px; }
+  .flash.success { background: rgba(61,220,151,0.12); color: var(--accent); }
+  .flash.error { background: rgba(255,92,92,0.12); color: var(--danger); }
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 14px; }
+  .stat { background: #0e1320; border: 1px solid var(--border); border-radius: 6px; padding: 12px; }
+  .stat .value { font-size: 22px; font-weight: 700; color: var(--accent); }
+  .stat .label { font-size: 11px; color: var(--muted); text-transform: uppercase; }
+</style>
+</head>
+<body>
+<header>
+  <h1>AI<span>-NIDS</span> — Intrusion Detection Dashboard</h1>
+  <nav>
+    {% if session.get('username') %}
+      <a href="/">Dashboard</a>
+      <a href="/alerts">Alerts</a>
+      <a href="/metrics">Model Metrics</a>
+      {% if session.get('role') == 'admin' %}<a href="/admin/audit-log">Audit Log</a>{% endif %}
+      <a href="/logout">Logout ({{ session.get('username') }} · {{ session.get('role') }})</a>
+    {% else %}
+      <a href="/login">Login</a>
+    {% endif %}
+  </nav>
+</header>
+<main>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+      <div class="flash {{ category }}">{{ message }}</div>
+    {% endfor %}
+  {% endwith %}
+  {% block content %}{% endblock %}
+</main>
+</body>
+</html>

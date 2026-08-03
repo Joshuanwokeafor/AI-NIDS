@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Audit Log — AI-NIDS{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>Immutable Audit Trail</h2>
+  <table>
+    <tr><th>ID</th><th>Timestamp</th><th>Event</th><th>Actor</th><th>Details</th></tr>
+    {% for e in events %}
+    <tr>
+      <td>{{ e.id }}</td><td>{{ e.timestamp }}</td><td>{{ e.event_type }}</td>
+      <td>{{ e.actor }}</td><td style="font-family:monospace;font-size:11px;">{{ e.details }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5" style="color:var(--muted)">No audit events yet.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Model Metrics — AI-NIDS{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>Model Performance</h2>
+  {% if report %}
+  <div class="stat-grid">
+    <div class="stat"><div class="value">{{ "%.3f"|format(report.accuracy) }}</div><div class="label">Accuracy</div></div>
+    <div class="stat"><div class="value">{{ "%.3f"|format(report.precision_macro) }}</div><div class="label">Precision (macro)</div></div>
+    <div class="stat"><div class="value">{{ "%.3f"|format(report.recall_macro) }}</div><div class="label">Recall (macro)</div></div>
+    <div class="stat"><div class="value">{{ "%.3f"|format(report.f1_macro) }}</div><div class="label">F1 (macro)</div></div>
+    <div class="stat"><div class="value">{{ "%.3f"|format(report.false_positive_rate.macro_avg) }}</div><div class="label">FPR (macro)</div></div>
+    <div class="stat"><div class="value">{{ "%.2f"|format(report.latency_benchmark_ms.mean_total_ms) }} ms</div><div class="label">Mean Latency</div></div>
+  </div>
+
+  <h3 style="font-size:13px;color:var(--muted);margin-top:22px;">Confusion Matrix</h3>
+  <table>
+    <tr><th></th>{% for label in report.confusion_matrix_labels %}<th>{{ label }}</th>{% endfor %}</tr>
+    {% for row in report.confusion_matrix %}
+    <tr>
+      <th>{{ report.confusion_matrix_labels[loop.index0] }}</th>
+      {% for cell in row %}<td>{{ cell }}</td>{% endfor %}
+    </tr>
+    {% endfor %}
+  </table>
+
+  <h3 style="font-size:13px;color:var(--muted);margin-top:22px;">Per-model Latency (ms/record)</h3>
+  <table>
+    <tr><th>SVM</th><th>Random Forest</th><th>LSTM</th></tr>
+    <tr>
+      <td>{{ "%.3f"|format(report.latency_benchmark_ms.mean_svm_ms) }}</td>
+      <td>{{ "%.3f"|format(report.latency_benchmark_ms.mean_random_forest_ms) }}</td>
+      <td>{{ "%.3f"|format(report.latency_benchmark_ms.mean_lstm_ms) }}</td>
+    </tr>
+  </table>
+  {% else %}
+  <p style="color:var(--muted)">No evaluation report found yet. Run <code>python scripts/train.py --data ...</code> to generate one.</p>
+  {% endif %}
+</div>
+{% endblock %}
