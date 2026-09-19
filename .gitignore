@@ -5,9 +5,6 @@ db/nids.sqlite3
 logs/*.log
 logs/*.json
 logs/exports/
-models/*.joblib
-models/*.keras
-models/*.meta.npy
 data/*.csv
 !data/.gitkeep
 !logs/.gitkeep
