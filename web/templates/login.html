@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Login — AI-NIDS{% endblock %}
+{% block content %}
+<div class="card" style="max-width:360px;margin:60px auto;">
+  <h2>Sign in</h2>
+  <form method="POST">
+    <p><input type="text" name="username" placeholder="Username" style="width:100%" required></p>
+    <p><input type="password" name="password" placeholder="Password" style="width:100%" required></p>
+    <button type="submit" style="width:100%">Login</button>
+  </form>
+  <p style="color:var(--muted);font-size:11px;margin-top:14px;">
+    First run default: admin / admin — change this immediately in production.
+  </p>
+</div>
+{% endblock %}

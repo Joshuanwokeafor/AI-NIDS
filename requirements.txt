@@ -1,0 +1,27 @@
+# AI-NIDS — Python requirements
+# Tested against Python 3.11
+
+# Core data / ML
+numpy>=2.1.0
+pandas>=2.2.3
+scikit-learn>=1.5.0
+imbalanced-learn==0.12.3
+scikit-fuzzy==0.4.2
+tensorflow>=2.21.0      # LSTM classifier (Keras 3 API)
+
+# Packet capture (optional — only required for PCAP / live modes)
+scapy==2.5.0
+
+# Web dashboard
+Flask==3.0.3
+Werkzeug==3.0.3
+
+# Export
+reportlab==4.2.0
+
+# Persistence
+joblib==1.4.2
+
+# Testing
+pytest==8.2.0
+pytest-cov==5.0.0

@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Alerts — AI-NIDS{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>Historical Alerts {% if status %}({{ status }}){% endif %}</h2>
+  <p>
+    <a class="btn secondary" href="/alerts">All</a>
+    <a class="btn secondary" href="/alerts?status=alerted">Alerted</a>
+    <a class="btn secondary" href="/alerts?status=review_queue">Review Queue</a>
+    <a class="btn secondary" href="/alerts?status=acknowledged">Acknowledged</a>
+  </p>
+  <table>
+    <tr><th>ID</th><th>Timestamp</th><th>Category</th><th>Confidence</th>
+        <th>Source</th><th>Destination</th><th>Status</th></tr>
+    {% for a in alerts %}
+    <tr>
+      <td>{{ a.id }}</td>
+      <td>{{ a.timestamp }}</td>
+      <td><span class="badge {{ a.attack_category }}">{{ a.attack_category }}</span></td>
+      <td>{{ "%.2f"|format(a.confidence) }}</td>
+      <td>{{ a.src_ip }}:{{ a.src_port }}</td>
+      <td>{{ a.dst_ip }}:{{ a.dst_port }}</td>
+      <td><span class="badge {{ a.status }}">{{ a.status }}</span></td>
+    </tr>
+    {% else %}
+    <tr><td colspan="7" style="color:var(--muted)">No records.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

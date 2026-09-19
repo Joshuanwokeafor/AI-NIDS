@@ -1,0 +1,27 @@
+# Render.com blueprint for the FULL system (all three models).
+# Deploy with: push this repo to GitHub, then Render -> New -> Blueprint.
+#
+# Use this instead of (or alongside) Vercel when you need live inference
+# or retraining — see DEPLOYMENT.md for the comparison.
+
+services:
+  - type: web
+    name: ai-nids
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter        # 'free' works but sleeps and has tight memory for TF
+    healthCheckPath: /login
+    envVars:
+      - key: NIDS_SECRET_KEY
+        generateValue: true
+      - key: NIDS_ADMIN_PASSWORD
+        sync: false      # set this yourself in the Render dashboard
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ai-nids-db
+          property: connectionString
+
+databases:
+  - name: ai-nids-db
+    plan: free
+    databaseName: ai_nids
