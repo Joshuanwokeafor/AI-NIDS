@@ -1,18 +1,74 @@
 {% extends "base.html" %}
-{% block title %}Audit Log — AI-NIDS{% endblock %}
+{% block title %}Audit trail — AI-NIDS{% endblock %}
+
+{% block extra_css %}
+.event { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; white-space: nowrap; }
+.event::before { content: ''; width: 7px; height: 7px; border-radius: 2px; flex: none; background: var(--ink-dim); }
+.event.is-auth::before { background: var(--probe); }
+.event.is-alert::before { background: var(--dos); }
+.event.is-model::before { background: var(--r2l); }
+.event.is-config::before { background: var(--warn); }
+.event.is-export::before { background: var(--normal); }
+
+.actor { font-size: 13px; }
+.actor.system { color: var(--ink-dim); font-style: italic; }
+
+.details {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--ink-dim);
+  line-height: 1.5;
+  max-width: 62ch;
+  word-break: break-word;
+}
+.count-line { font-size: 13px; color: var(--ink-dim); font-family: var(--mono); font-variant-numeric: tabular-nums; }
+{% endblock %}
+
 {% block content %}
-<div class="card">
-  <h2>Immutable Audit Trail</h2>
-  <table>
-    <tr><th>ID</th><th>Timestamp</th><th>Event</th><th>Actor</th><th>Details</th></tr>
-    {% for e in events %}
-    <tr>
-      <td>{{ e.id }}</td><td>{{ e.timestamp }}</td><td>{{ e.event_type }}</td>
-      <td>{{ e.actor }}</td><td style="font-family:monospace;font-size:11px;">{{ e.details }}</td>
-    </tr>
-    {% else %}
-    <tr><td colspan="5" style="color:var(--muted)">No audit events yet.</td></tr>
-    {% endfor %}
-  </table>
+<div class="page-head">
+  <h1>Audit trail</h1>
+  <p>Append-only record of sign-ins, acknowledgements, threshold changes, retraining and exports. Entries are never modified or deleted.</p>
 </div>
+
+<section class="panel">
+  <div class="panel-head">
+    <h2>Recorded events</h2>
+    <span class="count-line">{{ events|length }} entries</span>
+  </div>
+  <div class="panel-body flush">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>ID</th><th>Recorded</th><th>Event</th><th>Actor</th><th>Details</th></tr>
+        </thead>
+        <tbody>
+        {% for e in events %}
+          {% set t = e.event_type %}
+          <tr>
+            <td class="rowid">{{ e.id }}</td>
+            <td class="ts">{{ e.timestamp }}</td>
+            <td>
+              <span class="event
+                {%- if t in ['LOGIN','LOGOUT'] %} is-auth
+                {%- elif 'ALERT' in t %} is-alert
+                {%- elif 'RETRAIN' in t or 'MODEL' in t %} is-model
+                {%- elif 'THRESHOLD' in t or 'USER' in t %} is-config
+                {%- elif 'EXPORT' in t %} is-export{% endif %}">
+                {{ t|replace('_',' ')|capitalize }}
+              </span>
+            </td>
+            <td class="actor {{ 'system' if e.actor == 'system' }}">{{ e.actor }}</td>
+            <td class="details">{{ e.details }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="5" class="empty">
+            <strong>No events recorded</strong>
+            Activity appears here as soon as the system is used.
+          </td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
 {% endblock %}

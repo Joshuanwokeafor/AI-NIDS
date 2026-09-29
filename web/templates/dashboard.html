@@ -1,95 +1,307 @@
 {% extends "base.html" %}
-{% block title %}Dashboard — AI-NIDS{% endblock %}
+{% block title %}Live monitor — AI-NIDS{% endblock %}
+
+{% block extra_css %}
+/* --- Threat posture band: the page's one bold moment -------------- */
+.posture {
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius);
+  background:
+    linear-gradient(180deg, rgba(20,33,54,.8), rgba(14,22,40,.8));
+  padding: 20px 22px;
+  margin-bottom: 18px;
+}
+.posture-top {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap; margin-bottom: 16px;
+}
+.posture-count {
+  display: flex; align-items: baseline; gap: 10px;
+}
+.posture-count b {
+  font-family: var(--mono);
+  font-size: 34px; font-weight: 600; line-height: 1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+.posture-count span { font-size: 13.5px; color: var(--ink-dim); }
+.posture-right { font-size: 13px; color: var(--ink-dim); }
+.posture-right b { color: var(--warn); font-family: var(--mono); font-weight: 600; }
+
+.bar {
+  display: flex; height: 12px; width: 100%;
+  border-radius: 3px; overflow: hidden;
+  background: var(--panel-3);
+  gap: 2px;
+}
+.bar span {
+  display: block; height: 100%;
+  transform-origin: left center;
+  animation: sweep .55s cubic-bezier(.22,.9,.3,1) both;
+}
+@keyframes sweep { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+.bar .s-Normal { background: var(--normal); }
+.bar .s-DoS    { background: var(--dos); }
+.bar .s-Probe  { background: var(--probe); }
+.bar .s-R2L    { background: var(--r2l); }
+.bar .s-U2R    { background: var(--u2r); }
+
+.legend {
+  display: flex; flex-wrap: wrap; gap: 8px 20px;
+  margin-top: 14px;
+}
+.legend-item { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--ink-mid); }
+.legend-item .key { width: 9px; height: 9px; flex: none; }
+.legend-item .key.s-Normal { border-radius: 50%; background: var(--normal); }
+.legend-item .key.s-DoS { background: var(--dos); clip-path: polygon(50% 0,100% 100%,0 100%); }
+.legend-item .key.s-Probe { background: var(--probe); }
+.legend-item .key.s-R2L { background: var(--r2l); clip-path: polygon(50% 0,100% 50%,50% 100%,0 50%); }
+.legend-item .key.s-U2R { background: var(--u2r); clip-path: polygon(50% 0,100% 38%,82% 100%,18% 100%,0 38%); }
+.legend-item .n { font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--ink); }
+
+.bar-empty {
+  height: 12px; border-radius: 3px;
+  background: repeating-linear-gradient(115deg, var(--panel-3) 0 9px, var(--panel-2) 9px 18px);
+}
+
+/* --- Admin console ------------------------------------------------ */
+.admin { border-color: var(--line); }
+.admin-grid {
+  display: grid; gap: 0;
+  grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+}
+.admin-cell { padding: 18px; border-right: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft); }
+.admin-cell h3 { margin: 0 0 3px; font-size: 13.5px; font-weight: 600; }
+.admin-cell .why { margin: 0 0 14px; font-size: 12.5px; color: var(--ink-dim); line-height: 1.5; }
+
+.export-row { display: flex; gap: 10px; flex-wrap: wrap; }
+{% endblock %}
+
 {% block content %}
 
-<div class="card">
-  <h2>Overview</h2>
-  <div class="stat-grid">
-    <div class="stat"><div class="value">{{ alerts|length }}</div><div class="label">Recent Alerts</div></div>
-    <div class="stat"><div class="value">{{ review_queue|length }}</div><div class="label">In Review Queue</div></div>
-    <div class="stat"><div class="value">{{ role }}</div><div class="label">Your Role</div></div>
+{% set total = alerts|length %}
+{% set n_normal = alerts|selectattr('attack_category','equalto','Normal')|list|length %}
+{% set n_dos    = alerts|selectattr('attack_category','equalto','DoS')|list|length %}
+{% set n_probe  = alerts|selectattr('attack_category','equalto','Probe')|list|length %}
+{% set n_r2l    = alerts|selectattr('attack_category','equalto','R2L')|list|length %}
+{% set n_u2r    = alerts|selectattr('attack_category','equalto','U2R')|list|length %}
+
+<div class="page-head">
+  <h1>Live monitor</h1>
+  <p>Classifications from the hybrid ensemble, most recent first. Detections below the ambiguity threshold are held for analyst review instead of raising an alert.</p>
+</div>
+
+{% if is_serverless %}
+<div class="notice">
+  <h2>Hosted instance — detection runs elsewhere</h2>
+  <p>
+    This deployment serves the console, alert store, model metrics and exports.
+    Inference, retraining and live capture run in the full deployment only: a
+    serverless sandbox has no TensorFlow, no raw-socket access and an ephemeral
+    filesystem. Figures shown here come from the full training run.
+  </p>
+</div>
+{% endif %}
+
+<section class="posture" aria-label="Threat posture">
+  <div class="posture-top">
+    <div class="posture-count">
+      <b>{{ total }}</b>
+      <span>{{ 'detection' if total == 1 else 'detections' }} in view</span>
+    </div>
+    <div class="posture-right">
+      {% if review_queue|length %}
+        <b>{{ review_queue|length }}</b> awaiting analyst review
+      {% else %}
+        Nothing awaiting review
+      {% endif %}
+    </div>
   </div>
-</div>
 
-<div class="card">
-  <h2>Recent Alerts (Real-Time View)</h2>
-  <table>
-    <tr><th>ID</th><th>Timestamp</th><th>Category</th><th>Confidence</th>
-        <th>Source</th><th>Destination</th><th>Status</th><th></th></tr>
-    {% for a in alerts %}
-    <tr>
-      <td>{{ a.id }}</td>
-      <td>{{ a.timestamp }}</td>
-      <td><span class="badge {{ a.attack_category }}">{{ a.attack_category }}</span></td>
-      <td>{{ "%.2f"|format(a.confidence) }}</td>
-      <td>{{ a.src_ip }}:{{ a.src_port }}</td>
-      <td>{{ a.dst_ip }}:{{ a.dst_port }}</td>
-      <td><span class="badge {{ a.status }}">{{ a.status }}</span></td>
-      <td>
-        {% if a.status != 'acknowledged' %}
-        <form class="inline" method="POST" action="/alerts/{{ a.id }}/acknowledge">
-          <button type="submit">Ack</button>
-        </form>
-        {% endif %}
-      </td>
-    </tr>
-    {% else %}
-    <tr><td colspan="8" style="color:var(--muted)">No alerts yet — train a model and run inference to populate this view.</td></tr>
-    {% endfor %}
-  </table>
-</div>
+  {% if total %}
+  <div class="bar" role="img" aria-label="Detections by class: {{ n_normal }} normal, {{ n_dos }} DoS, {{ n_probe }} probe, {{ n_r2l }} R2L, {{ n_u2r }} U2R">
+    {% if n_normal %}<span class="s-Normal" style="width: {{ (n_normal / total * 100)|round(2) }}%"></span>{% endif %}
+    {% if n_dos %}<span class="s-DoS" style="width: {{ (n_dos / total * 100)|round(2) }}%"></span>{% endif %}
+    {% if n_probe %}<span class="s-Probe" style="width: {{ (n_probe / total * 100)|round(2) }}%"></span>{% endif %}
+    {% if n_r2l %}<span class="s-R2L" style="width: {{ (n_r2l / total * 100)|round(2) }}%"></span>{% endif %}
+    {% if n_u2r %}<span class="s-U2R" style="width: {{ (n_u2r / total * 100)|round(2) }}%"></span>{% endif %}
+  </div>
+  <div class="legend">
+    <span class="legend-item"><i class="key s-Normal"></i> Normal <b class="n">{{ n_normal }}</b></span>
+    <span class="legend-item"><i class="key s-DoS"></i> Denial of service <b class="n">{{ n_dos }}</b></span>
+    <span class="legend-item"><i class="key s-Probe"></i> Probe <b class="n">{{ n_probe }}</b></span>
+    <span class="legend-item"><i class="key s-R2L"></i> Remote to local <b class="n">{{ n_r2l }}</b></span>
+    <span class="legend-item"><i class="key s-U2R"></i> User to root <b class="n">{{ n_u2r }}</b></span>
+  </div>
+  {% else %}
+  <div class="bar-empty" role="img" aria-label="No detections recorded yet"></div>
+  <div class="legend"><span class="legend-item">No traffic classified yet. Train a model, then run inference to populate this view.</span></div>
+  {% endif %}
+</section>
 
-<div class="card">
-  <h2>Analyst Review Queue (below ambiguity threshold δ)</h2>
-  <table>
-    <tr><th>ID</th><th>Timestamp</th><th>Category</th><th>Confidence</th><th>Source</th><th>Destination</th></tr>
-    {% for a in review_queue %}
-    <tr>
-      <td>{{ a.id }}</td><td>{{ a.timestamp }}</td>
-      <td><span class="badge {{ a.attack_category }}">{{ a.attack_category }}</span></td>
-      <td>{{ "%.2f"|format(a.confidence) }}</td>
-      <td>{{ a.src_ip }}:{{ a.src_port }}</td>
-      <td>{{ a.dst_ip }}:{{ a.dst_port }}</td>
-    </tr>
-    {% else %}
-    <tr><td colspan="6" style="color:var(--muted)">Nothing pending review.</td></tr>
-    {% endfor %}
-  </table>
-</div>
+<section class="panel">
+  <div class="panel-head">
+    <h2>Recent detections</h2>
+    <span class="sub">Newest first</span>
+  </div>
+  <div class="panel-body flush">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th><th>Detected</th><th>Class</th><th>Confidence</th>
+            <th>Source</th><th>Destination</th><th>Disposition</th><th></th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for a in alerts %}
+          <tr>
+            <td class="rowid">{{ a.id }}</td>
+            <td class="ts">{{ a.timestamp }}</td>
+            <td><span class="tag {{ a.attack_category }}"><i class="glyph"></i>{{ a.attack_category }}</span></td>
+            <td>
+              <span class="conf">
+                <span class="conf-track"><span class="conf-fill {{ 'low' if a.confidence < 0.6 }}" style="width: {{ (a.confidence * 100)|round(1) }}%"></span></span>
+                <span class="conf-value">{{ "%.2f"|format(a.confidence) }}</span>
+              </span>
+            </td>
+            <td class="addr"><b>{{ a.src_ip }}</b>:{{ a.src_port }}</td>
+            <td class="addr"><b>{{ a.dst_ip }}</b>:{{ a.dst_port }}</td>
+            <td><span class="state {{ a.status }}">{{ a.status|replace('_',' ')|capitalize }}</span></td>
+            <td>
+              {% if a.status != 'acknowledged' %}
+              <form method="POST" action="/alerts/{{ a.id }}/acknowledge">
+                <button type="submit" class="btn-quiet btn-sm">Acknowledge</button>
+              </form>
+              {% endif %}
+            </td>
+          </tr>
+        {% else %}
+          <tr><td colspan="8" class="empty">
+            <strong>No detections yet</strong>
+            Train a model and run inference to start populating the monitor.
+          </td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
 
-<div class="card">
-  <h2>Export</h2>
-  <a class="btn" href="/export/csv">Export CSV</a>
-  <a class="btn secondary" href="/export/pdf" style="margin-left:8px;">Export PDF</a>
-</div>
+<section class="panel">
+  <div class="panel-head">
+    <h2>Analyst review queue</h2>
+    <span class="sub">Maximum class membership below the ambiguity threshold</span>
+  </div>
+  <div class="panel-body flush">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>ID</th><th>Detected</th><th>Class</th><th>Confidence</th><th>Source</th><th>Destination</th></tr>
+        </thead>
+        <tbody>
+        {% for a in review_queue %}
+          <tr>
+            <td class="rowid">{{ a.id }}</td>
+            <td class="ts">{{ a.timestamp }}</td>
+            <td><span class="tag {{ a.attack_category }}"><i class="glyph"></i>{{ a.attack_category }}</span></td>
+            <td>
+              <span class="conf">
+                <span class="conf-track"><span class="conf-fill low" style="width: {{ (a.confidence * 100)|round(1) }}%"></span></span>
+                <span class="conf-value">{{ "%.2f"|format(a.confidence) }}</span>
+              </span>
+            </td>
+            <td class="addr"><b>{{ a.src_ip }}</b>:{{ a.src_port }}</td>
+            <td class="addr"><b>{{ a.dst_ip }}</b>:{{ a.dst_port }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="6" class="empty">
+            <strong>Queue is clear</strong>
+            Every recent classification met the confidence threshold.
+          </td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="panel-head"><h2>Export</h2></div>
+  <div class="panel-body">
+    <div class="export-row">
+      <a class="btn-quiet btn" href="/export/csv">Download CSV</a>
+      <a class="btn-quiet btn" href="/export/pdf">Download PDF</a>
+    </div>
+  </div>
+</section>
 
 {% if role == 'admin' %}
-<div class="card">
-  <h2>Administrator Controls</h2>
+<section class="panel admin">
+  <div class="panel-head">
+    <h2>Administration</h2>
+    <span class="sub">Visible to administrators only</span>
+  </div>
 
-  <h3 style="font-size:13px;color:var(--muted)">Retrain models</h3>
-  <form method="POST" action="/admin/retrain">
-    <input type="text" name="csv_path" placeholder="/path/to/KDDTrain+.csv" style="width:320px">
-    <button type="submit">Retrain</button>
-  </form>
+  {% if is_serverless %}
+  <div class="panel-body" style="padding-bottom:0;">
+    <div class="notice" style="margin-bottom:0;">
+      <h2>Retraining and threshold changes are disabled here</h2>
+      <p>These actions need the full deployment. Alert history, metrics and exports work normally on this instance.</p>
+    </div>
+  </div>
+  {% endif %}
 
-  <h3 style="font-size:13px;color:var(--muted);margin-top:18px;">Ambiguity threshold (δ)</h3>
-  <form method="POST" action="/admin/threshold">
-    <input type="number" step="0.01" min="0" max="1" name="delta" placeholder="0.60">
-    <button type="submit">Update</button>
-  </form>
+  <div class="admin-grid">
+    <div class="admin-cell">
+      <h3>Retrain models</h3>
+      <p class="why">Rebuilds all three classifiers and refits the fuzzy aggregator on a labelled dataset.</p>
+      <form method="POST" action="/admin/retrain">
+        <div class="field">
+          <label for="csv_path">Dataset path</label>
+          <input id="csv_path" class="mono" type="text" name="csv_path" placeholder="data/KDDTrain+.csv">
+        </div>
+        <button type="submit">Start retraining</button>
+      </form>
+    </div>
 
-  <h3 style="font-size:13px;color:var(--muted);margin-top:18px;">Create user</h3>
-  <form method="POST" action="/admin/users">
-    <input type="text" name="username" placeholder="username">
-    <input type="password" name="password" placeholder="password">
-    <select name="role">
-      <option value="analyst">analyst</option>
-      <option value="admin">admin</option>
-    </select>
-    <button type="submit">Create</button>
-  </form>
-</div>
+    <div class="admin-cell">
+      <h3>Ambiguity threshold</h3>
+      <p class="why">Detections below this membership value go to the review queue instead of raising an alert.</p>
+      <form method="POST" action="/admin/threshold">
+        <div class="field">
+          <label for="delta">Threshold value</label>
+          <input id="delta" class="mono" type="number" step="0.01" min="0" max="1" name="delta" placeholder="0.60">
+        </div>
+        <button type="submit">Update threshold</button>
+      </form>
+    </div>
+
+    <div class="admin-cell">
+      <h3>Add a user</h3>
+      <p class="why">Analysts get read-only access. Administrators can retrain, change the threshold and read the audit trail.</p>
+      <form method="POST" action="/admin/users">
+        <div class="field">
+          <label for="new_username">Username</label>
+          <input id="new_username" type="text" name="username" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="new_password">Password</label>
+          <input id="new_password" type="password" name="password" autocomplete="new-password">
+        </div>
+        <div class="field">
+          <label for="new_role">Role</label>
+          <select id="new_role" name="role">
+            <option value="analyst">Analyst</option>
+            <option value="admin">Administrator</option>
+          </select>
+        </div>
+        <button type="submit">Create user</button>
+      </form>
+    </div>
+  </div>
+</section>
 {% endif %}
 
 {% endblock %}

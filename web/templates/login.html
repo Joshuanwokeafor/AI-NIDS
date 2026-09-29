@@ -1,15 +1,158 @@
 {% extends "base.html" %}
-{% block title %}Login — AI-NIDS{% endblock %}
+{% block title %}Sign in — AI-NIDS{% endblock %}
+
+{% block extra_css %}
+/* ---------- Brand ---------- */
+.auth-brand { display: flex; align-items: center; gap: 12px; margin-bottom: 22px; }
+.auth-brand .brand-mark { width: 38px; height: 38px; border-radius: 11px; box-shadow: 0 0 24px rgba(45,212,191,.35); }
+.auth-brand .brand-mark svg { width: 20px; height: 20px; }
+.auth-brand h1 { margin: 0; font-size: 19px; font-weight: 600; letter-spacing: -0.02em; }
+.auth-brand p { margin: 2px 0 0; font-size: 12.5px; color: var(--ink-dim); }
+.auth-status {
+  margin-left: auto; display: inline-flex; align-items: center; gap: 7px;
+  padding: 5px 10px; border-radius: 999px; font-size: 11.5px; color: var(--ink-mid, #b6c2d6);
+  border: 1px solid var(--line-soft); background: rgba(45,212,191,.06);
+}
+.auth-status i { width: 7px; height: 7px; border-radius: 50%; background: #2dd4bf; box-shadow: 0 0 0 0 rgba(45,212,191,.6); animation: auth-pulse 2.2s ease-out infinite; }
+@keyframes auth-pulse { 70% { box-shadow: 0 0 0 7px rgba(45,212,191,0); } 100% { box-shadow: 0 0 0 0 rgba(45,212,191,0); } }
+
+/* ---------- Panel ---------- */
+.auth-panel {
+  position: relative; overflow: hidden; isolation: isolate;
+  background:
+    radial-gradient(120% 70% at 0% 0%, rgba(124,92,255,.22), transparent 60%),
+    radial-gradient(90% 60% at 100% 100%, rgba(45,212,191,.16), transparent 65%),
+    linear-gradient(180deg, rgba(20,33,54,.86), rgba(14,22,40,.86));
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius);
+  padding: 24px;
+  box-shadow: 0 24px 60px -24px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.04);
+}
+.auth-mesh { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 150px; z-index: -1; opacity: .55; pointer-events: none;
+  -webkit-mask-image: linear-gradient(to top, #000 10%, transparent 95%); mask-image: linear-gradient(to top, #000 10%, transparent 95%); }
+.auth-mesh path { fill: none; stroke: #8b6cff; stroke-width: 1; }
+.auth-mesh .v { stroke: rgba(139,108,255,.55); }
+.auth-mesh .h { stroke: rgba(45,212,191,.45); }
+
+.auth-panel h2 { margin: 0 0 4px; font-size: 16px; font-weight: 600; }
+.auth-panel .lede { margin: 0 0 20px; font-size: 13px; color: var(--ink-dim); }
+
+/* ---------- Readout strip ---------- */
+.auth-readout { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 0 0 20px; }
+.auth-readout div { padding: 10px 10px 9px; border-radius: 10px; border: 1px solid var(--line-soft); background: rgba(6,10,20,.45); }
+.auth-readout b { display: block; font-family: var(--mono, ui-monospace, monospace); font-size: 18px; font-weight: 500; letter-spacing: .04em; color: #e8eefc; }
+.auth-readout span { font-size: 11px; color: var(--ink-dim); }
+.auth-readout .warn b { color: #e0a96d; }
+.auth-readout .ok b { color: #2dd4bf; }
+
+/* ---------- Form ---------- */
+.auth-panel .field input {
+  background: rgba(6,10,20,.55);
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.auth-panel .field input:focus {
+  outline: none; border-color: #2dd4bf;
+  box-shadow: 0 0 0 3px rgba(45,212,191,.18);
+}
+.auth-pw { position: relative; }
+.auth-pw input { padding-right: 64px; width: 100%; box-sizing: border-box; }
+.auth-pw button {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  min-height: 32px; padding: 0 10px; width: auto; margin: 0;
+  background: transparent; border: 1px solid var(--line-soft); border-radius: 8px;
+  color: var(--ink-mid, #b6c2d6); font-size: 12px; cursor: pointer; box-shadow: none;
+}
+.auth-pw button:hover { border-color: #2dd4bf; color: #fff; }
+.auth-pw button:focus-visible { outline: 2px solid #2dd4bf; outline-offset: 2px; }
+
+.auth-submit {
+  width: 100%; min-height: 44px; margin-top: 4px;
+  background: linear-gradient(135deg, #2dd4bf, #4fb3a8 55%, #6f7fe8);
+  color: #041A18; font-weight: 600; border: 0;
+  box-shadow: 0 10px 28px -10px rgba(45,212,191,.6);
+  transition: transform .15s ease, box-shadow .15s ease, filter .15s ease;
+}
+.auth-submit:hover { filter: brightness(1.06); box-shadow: 0 14px 32px -10px rgba(45,212,191,.75); }
+.auth-submit:active { transform: translateY(1px); }
+
+.auth-foot { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line-soft); font-size: 12px; color: var(--ink-dim); line-height: 1.6; }
+.auth-foot code { font-family: var(--mono); color: var(--ink-mid); }
+
+@media (max-width: 420px) {
+  .auth-status { display: none; }
+  .auth-readout b { font-size: 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .auth-status i { animation: none; }
+  .auth-submit, .auth-panel .field input { transition: none; }
+}
+{% endblock %}
+
 {% block content %}
-<div class="card" style="max-width:360px;margin:60px auto;">
+<div class="auth-brand">
+  <span class="brand-mark" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#041A18" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 5.5v6c0 5 3.4 9.3 8 10.5 4.6-1.2 8-5.5 8-10.5v-6L12 2Z"/></svg>
+  </span>
+  <div>
+    <h1>AI-NIDS</h1>
+    <p>Network intrusion detection console</p>
+  </div>
+  <span class="auth-status"><i aria-hidden="true"></i>Monitoring live</span>
+</div>
+
+<div class="auth-panel">
+  <svg class="auth-mesh" viewBox="0 0 400 150" preserveAspectRatio="none" aria-hidden="true">
+    <path class="h" d="M0 120 C60 110 90 60 140 50 S230 90 280 70 S360 40 400 60"/>
+    <path class="h" d="M0 132 C60 122 95 78 145 68 S235 104 285 88 S360 62 400 78"/>
+    <path class="h" d="M0 144 C60 134 100 96 150 86 S240 118 290 106 S360 84 400 96"/>
+    <path class="v" d="M40 150 L40 118"/><path class="v" d="M90 150 L90 92"/>
+    <path class="v" d="M140 150 L140 52"/><path class="v" d="M190 150 L190 76"/>
+    <path class="v" d="M240 150 L240 96"/><path class="v" d="M290 150 L290 72"/>
+    <path class="v" d="M340 150 L340 56"/><path class="v" d="M390 150 L390 62"/>
+  </svg>
+
   <h2>Sign in</h2>
+  <p class="lede">Analyst and administrator access to the detection console.</p>
+
+  <div class="auth-readout" aria-hidden="true">
+    <div class="ok"><b>ON</b><span>Detection engine</span></div>
+    <div><b>24/7</b><span>Traffic analysis</span></div>
+    <div class="warn"><b>AUTH</b><span>Access required</span></div>
+  </div>
+
   <form method="POST">
-    <p><input type="text" name="username" placeholder="Username" style="width:100%" required></p>
-    <p><input type="password" name="password" placeholder="Password" style="width:100%" required></p>
-    <button type="submit" style="width:100%">Login</button>
+    <div class="field">
+      <label for="username">Username</label>
+      <input id="username" type="text" name="username" autocomplete="username" required autofocus>
+    </div>
+    <div class="field">
+      <label for="password">Password</label>
+      <div class="auth-pw">
+        <input id="password" type="password" name="password" autocomplete="current-password" required>
+        <button type="button" id="pw-toggle" aria-controls="password" aria-pressed="false">Show</button>
+      </div>
+    </div>
+    <button type="submit" class="auth-submit">Sign in</button>
   </form>
-  <p style="color:var(--muted);font-size:11px;margin-top:14px;">
-    First run default: admin / admin — change this immediately in production.
+
+  <p class="auth-foot">
+    First run creates <code>admin</code> with the password from
+    <code>NIDS_ADMIN_PASSWORD</code>, or <code>admin</code> locally.
+    Change it before exposing this console.
   </p>
 </div>
+
+<script>
+  (function () {
+    var btn = document.getElementById('pw-toggle');
+    var pw = document.getElementById('password');
+    if (!btn || !pw) return;
+    btn.addEventListener('click', function () {
+      var show = pw.type === 'password';
+      pw.type = show ? 'text' : 'password';
+      btn.textContent = show ? 'Hide' : 'Show';
+      btn.setAttribute('aria-pressed', show ? 'true' : 'false');
+    });
+  })();
+</script>
 {% endblock %}

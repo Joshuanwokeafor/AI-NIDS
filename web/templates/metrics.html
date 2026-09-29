@@ -1,40 +1,229 @@
 {% extends "base.html" %}
-{% block title %}Model Metrics — AI-NIDS{% endblock %}
+{% block title %}Model performance — AI-NIDS{% endblock %}
+
+{% block extra_css %}
+.metrics {
+  display: grid; gap: 0;
+  grid-template-columns: repeat(auto-fit, minmax(178px, 1fr));
+  border-top: 1px solid var(--line-soft);
+  border-left: 1px solid var(--line-soft);
+}
+.metric {
+  padding: 17px 18px;
+  border-right: 1px solid var(--line-soft);
+  border-bottom: 1px solid var(--line-soft);
+}
+.metric .v {
+  display: block;
+  font-family: var(--mono);
+  font-size: 27px; font-weight: 600; line-height: 1.1;
+  font-variant-numeric: tabular-nums; letter-spacing: -0.02em;
+  color: var(--normal);
+}
+.metric .v.muted { color: var(--ink); }
+.metric .k { display: block; margin-top: 5px; font-size: 12.5px; color: var(--ink-mid); font-weight: 500; }
+.metric .d { display: block; margin-top: 2px; font-size: 11.5px; color: var(--ink-dim); line-height: 1.45; }
+
+/* --- Confusion matrix: diagonal is correct, off-diagonal is error -- */
+.cm { border-collapse: separate; border-spacing: 3px; width: auto; }
+.cm th { background: transparent; border: none; padding: 7px 10px; font-size: 12px; color: var(--ink-dim); }
+.cm th.row-label { text-align: right; white-space: nowrap; font-weight: 500; color: var(--ink-mid); }
+.cm td {
+  border: none; padding: 0;
+  width: 66px; height: 46px;
+  text-align: center; vertical-align: middle;
+  border-radius: var(--radius-sm);
+  font-family: var(--mono); font-size: 13px; font-variant-numeric: tabular-nums;
+  background: var(--panel-3);
+  position: relative;
+}
+.cm td.hit { color: #04201D; font-weight: 600; }
+.cm td.miss { color: var(--ink); }
+.cm td.zero { color: #4B5878; }
+.cm-key { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 16px; font-size: 12.5px; color: var(--ink-dim); }
+.cm-key i { display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 7px; vertical-align: -1px; }
+
+.split { display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(310px, 1fr)); }
+
+.lat-row { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--line-soft); }
+.lat-row:last-child { border-bottom: none; }
+.lat-name { flex: 0 0 132px; font-size: 13.5px; }
+.lat-track { flex: 1 1 auto; height: 6px; background: var(--panel-3); border-radius: 3px; overflow: hidden; min-width: 60px; }
+.lat-fill { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, #1C9C93, var(--normal)); }
+.lat-val { flex: 0 0 auto; font-family: var(--mono); font-size: 12.5px; color: var(--ink-mid); font-variant-numeric: tabular-nums; }
+
+.fpr-row { display: flex; justify-content: space-between; gap: 14px; padding: 9px 0; border-bottom: 1px solid var(--line-soft); font-size: 13.5px; }
+.fpr-row:last-child { border-bottom: none; }
+.fpr-row .val { font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--ink-mid); }
+{% endblock %}
+
 {% block content %}
-<div class="card">
-  <h2>Model Performance</h2>
-  {% if report %}
-  <div class="stat-grid">
-    <div class="stat"><div class="value">{{ "%.3f"|format(report.accuracy) }}</div><div class="label">Accuracy</div></div>
-    <div class="stat"><div class="value">{{ "%.3f"|format(report.precision_macro) }}</div><div class="label">Precision (macro)</div></div>
-    <div class="stat"><div class="value">{{ "%.3f"|format(report.recall_macro) }}</div><div class="label">Recall (macro)</div></div>
-    <div class="stat"><div class="value">{{ "%.3f"|format(report.f1_macro) }}</div><div class="label">F1 (macro)</div></div>
-    <div class="stat"><div class="value">{{ "%.3f"|format(report.false_positive_rate.macro_avg) }}</div><div class="label">FPR (macro)</div></div>
-    <div class="stat"><div class="value">{{ "%.2f"|format(report.latency_benchmark_ms.mean_total_ms) }} ms</div><div class="label">Mean Latency</div></div>
-  </div>
-
-  <h3 style="font-size:13px;color:var(--muted);margin-top:22px;">Confusion Matrix</h3>
-  <table>
-    <tr><th></th>{% for label in report.confusion_matrix_labels %}<th>{{ label }}</th>{% endfor %}</tr>
-    {% for row in report.confusion_matrix %}
-    <tr>
-      <th>{{ report.confusion_matrix_labels[loop.index0] }}</th>
-      {% for cell in row %}<td>{{ cell }}</td>{% endfor %}
-    </tr>
-    {% endfor %}
-  </table>
-
-  <h3 style="font-size:13px;color:var(--muted);margin-top:22px;">Per-model Latency (ms/record)</h3>
-  <table>
-    <tr><th>SVM</th><th>Random Forest</th><th>LSTM</th></tr>
-    <tr>
-      <td>{{ "%.3f"|format(report.latency_benchmark_ms.mean_svm_ms) }}</td>
-      <td>{{ "%.3f"|format(report.latency_benchmark_ms.mean_random_forest_ms) }}</td>
-      <td>{{ "%.3f"|format(report.latency_benchmark_ms.mean_lstm_ms) }}</td>
-    </tr>
-  </table>
-  {% else %}
-  <p style="color:var(--muted)">No evaluation report found yet. Run <code>python scripts/train.py --data ...</code> to generate one.</p>
-  {% endif %}
+<div class="page-head">
+  <h1>Model performance</h1>
+  <p>Results from the held-out test partition, produced by the evaluation run rather than entered by hand.</p>
 </div>
+
+{% if report %}
+
+<section class="panel">
+  <div class="panel-head">
+    <h2>Detection quality</h2>
+    <span class="sub">Macro-averaged across all five classes</span>
+  </div>
+  <div class="panel-body flush">
+    <div class="metrics">
+      <div class="metric">
+        <span class="v">{{ "%.3f"|format(report.accuracy) }}</span>
+        <span class="k">Accuracy</span>
+        <span class="d">Correct classifications overall</span>
+      </div>
+      <div class="metric">
+        <span class="v">{{ "%.3f"|format(report.precision_macro) }}</span>
+        <span class="k">Precision</span>
+        <span class="d">Of flagged traffic, how much was right</span>
+      </div>
+      <div class="metric">
+        <span class="v">{{ "%.3f"|format(report.recall_macro) }}</span>
+        <span class="k">Recall</span>
+        <span class="d">Of real attacks, how many were caught</span>
+      </div>
+      <div class="metric">
+        <span class="v">{{ "%.3f"|format(report.f1_macro) }}</span>
+        <span class="k">F1 score</span>
+        <span class="d">Balance of precision and recall</span>
+      </div>
+      <div class="metric">
+        <span class="v muted">{{ "%.3f"|format(report.false_positive_rate.macro_avg) }}</span>
+        <span class="k">False positive rate</span>
+        <span class="d">Benign traffic wrongly flagged</span>
+      </div>
+      {% if report.analyst_review_queue_rate is defined %}
+      <div class="metric">
+        <span class="v muted">{{ "%.3f"|format(report.analyst_review_queue_rate) }}</span>
+        <span class="k">Sent to review</span>
+        <span class="d">Held back below the threshold</span>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="panel-head">
+    <h2>Confusion matrix</h2>
+    <span class="sub">Rows are the true class, columns are what the system predicted</span>
+  </div>
+  <div class="panel-body">
+    <div class="table-wrap">
+      <table class="cm">
+        <thead>
+          <tr>
+            <th></th>
+            {% for label in report.confusion_matrix_labels %}<th>{{ label }}</th>{% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+        {% for row in report.confusion_matrix %}
+          {% set row_total = row|sum %}
+          <tr>
+            <th class="row-label">{{ report.confusion_matrix_labels[loop.index0] }}</th>
+            {% set row_index = loop.index0 %}
+            {% for cell in row %}
+              {% set share = (cell / row_total) if row_total else 0 %}
+              {% if cell == 0 %}
+                <td class="zero">0</td>
+              {% elif loop.index0 == row_index %}
+                <td class="hit" style="background: rgba(53,224,208,{{ (0.18 + share * 0.82)|round(3) }});"
+                    title="{{ cell }} of {{ row_total }} correctly classified">{{ cell }}</td>
+              {% else %}
+                <td class="miss" style="background: rgba(255,78,107,{{ (0.12 + share * 0.66)|round(3) }});"
+                    title="{{ cell }} of {{ row_total }} misclassified as {{ report.confusion_matrix_labels[loop.index0] }}">{{ cell }}</td>
+              {% endif %}
+            {% endfor %}
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="cm-key">
+      <span><i style="background: rgba(53,224,208,.75)"></i>Correctly classified</span>
+      <span><i style="background: rgba(255,78,107,.6)"></i>Misclassified</span>
+      <span>Shading is the share of that true class.</span>
+    </div>
+  </div>
+</section>
+
+<div class="split">
+  <section class="panel">
+    <div class="panel-head">
+      <h2>Inference latency</h2>
+      <span class="sub">Per record, one at a time</span>
+    </div>
+    <div class="panel-body">
+      {% set total_ms = report.latency_benchmark_ms.mean_total_ms %}
+      <div class="lat-row">
+        <span class="lat-name">Support vector machine</span>
+        <span class="lat-track"><span class="lat-fill" style="width: {{ ((report.latency_benchmark_ms.mean_svm_ms / total_ms * 100) if total_ms else 0)|round(1) }}%"></span></span>
+        <span class="lat-val">{{ "%.3f"|format(report.latency_benchmark_ms.mean_svm_ms) }} ms</span>
+      </div>
+      <div class="lat-row">
+        <span class="lat-name">Random forest</span>
+        <span class="lat-track"><span class="lat-fill" style="width: {{ ((report.latency_benchmark_ms.mean_random_forest_ms / total_ms * 100) if total_ms else 0)|round(1) }}%"></span></span>
+        <span class="lat-val">{{ "%.3f"|format(report.latency_benchmark_ms.mean_random_forest_ms) }} ms</span>
+      </div>
+      <div class="lat-row">
+        <span class="lat-name">LSTM network</span>
+        <span class="lat-track"><span class="lat-fill" style="width: {{ ((report.latency_benchmark_ms.mean_lstm_ms / total_ms * 100) if total_ms else 0)|round(1) }}%"></span></span>
+        <span class="lat-val">{{ "%.3f"|format(report.latency_benchmark_ms.mean_lstm_ms) }} ms</span>
+      </div>
+      <div class="lat-row">
+        <span class="lat-name">Full pipeline</span>
+        <span class="lat-track"><span class="lat-fill" style="width: 100%"></span></span>
+        <span class="lat-val">{{ "%.2f"|format(total_ms) }} ms</span>
+      </div>
+      {% if report.latency_benchmark_ms.p95_total_ms is defined %}
+      <p class="hint">
+        95th percentile {{ "%.2f"|format(report.latency_benchmark_ms.p95_total_ms) }} ms
+        over {{ report.latency_benchmark_ms.n_samples }} sampled records.
+        Model times exclude fuzzy aggregation, so they total less than the pipeline figure.
+      </p>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2>False positives by class</h2>
+      <span class="sub">Benign traffic wrongly assigned to each class</span>
+    </div>
+    <div class="panel-body">
+      {% for label in report.confusion_matrix_labels %}
+        {% if report.false_positive_rate[label] is defined %}
+        <div class="fpr-row">
+          <span><span class="tag {{ label }}"><i class="glyph"></i>{{ label }}</span></span>
+          <span class="val">{{ "%.4f"|format(report.false_positive_rate[label]) }}</span>
+        </div>
+        {% endif %}
+      {% endfor %}
+      <div class="fpr-row">
+        <span style="color:var(--ink-mid);font-weight:500;">Macro average</span>
+        <span class="val">{{ "%.4f"|format(report.false_positive_rate.macro_avg) }}</span>
+      </div>
+    </div>
+  </section>
+</div>
+
+{% else %}
+
+<section class="panel">
+  <div class="panel-body">
+    <div class="empty">
+      <strong>No evaluation report yet</strong>
+      Run <code style="font-family:var(--mono);color:var(--ink-mid);">python scripts/train.py --data data/KDDTrain+.csv</code>
+      to train the ensemble and generate one.
+    </div>
+  </div>
+</section>
+
+{% endif %}
 {% endblock %}

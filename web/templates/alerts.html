@@ -1,30 +1,66 @@
 {% extends "base.html" %}
-{% block title %}Alerts — AI-NIDS{% endblock %}
+{% block title %}Alert history — AI-NIDS{% endblock %}
+
+{% block extra_css %}
+.count-line { font-size: 13px; color: var(--ink-dim); font-family: var(--mono); font-variant-numeric: tabular-nums; }
+{% endblock %}
+
 {% block content %}
-<div class="card">
-  <h2>Historical Alerts {% if status %}({{ status }}){% endif %}</h2>
-  <p>
-    <a class="btn secondary" href="/alerts">All</a>
-    <a class="btn secondary" href="/alerts?status=alerted">Alerted</a>
-    <a class="btn secondary" href="/alerts?status=review_queue">Review Queue</a>
-    <a class="btn secondary" href="/alerts?status=acknowledged">Acknowledged</a>
-  </p>
-  <table>
-    <tr><th>ID</th><th>Timestamp</th><th>Category</th><th>Confidence</th>
-        <th>Source</th><th>Destination</th><th>Status</th></tr>
-    {% for a in alerts %}
-    <tr>
-      <td>{{ a.id }}</td>
-      <td>{{ a.timestamp }}</td>
-      <td><span class="badge {{ a.attack_category }}">{{ a.attack_category }}</span></td>
-      <td>{{ "%.2f"|format(a.confidence) }}</td>
-      <td>{{ a.src_ip }}:{{ a.src_port }}</td>
-      <td>{{ a.dst_ip }}:{{ a.dst_port }}</td>
-      <td><span class="badge {{ a.status }}">{{ a.status }}</span></td>
-    </tr>
-    {% else %}
-    <tr><td colspan="7" style="color:var(--muted)">No records.</td></tr>
-    {% endfor %}
-  </table>
+<div class="page-head">
+  <h1>Alert history</h1>
+  <p>Every classification the system has persisted, including acknowledged alerts and items held for review.</p>
+</div>
+
+<section class="panel">
+  <div class="panel-head">
+    <div class="filters">
+      <a class="chip {{ 'is-on' if not status }}" href="/alerts">All</a>
+      <a class="chip {{ 'is-on' if status == 'alerted' }}" href="/alerts?status=alerted">Alerted</a>
+      <a class="chip {{ 'is-on' if status == 'review_queue' }}" href="/alerts?status=review_queue">In review</a>
+      <a class="chip {{ 'is-on' if status == 'acknowledged' }}" href="/alerts?status=acknowledged">Acknowledged</a>
+    </div>
+    <span class="count-line">{{ alerts|length }} shown</span>
+  </div>
+
+  <div class="panel-body flush">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th><th>Detected</th><th>Class</th><th>Confidence</th>
+            <th>Source</th><th>Destination</th><th>Disposition</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for a in alerts %}
+          <tr>
+            <td class="rowid">{{ a.id }}</td>
+            <td class="ts">{{ a.timestamp }}</td>
+            <td><span class="tag {{ a.attack_category }}"><i class="glyph"></i>{{ a.attack_category }}</span></td>
+            <td>
+              <span class="conf">
+                <span class="conf-track"><span class="conf-fill {{ 'low' if a.confidence < 0.6 }}" style="width: {{ (a.confidence * 100)|round(1) }}%"></span></span>
+                <span class="conf-value">{{ "%.2f"|format(a.confidence) }}</span>
+              </span>
+            </td>
+            <td class="addr"><b>{{ a.src_ip }}</b>:{{ a.src_port }}</td>
+            <td class="addr"><b>{{ a.dst_ip }}</b>:{{ a.dst_port }}</td>
+            <td><span class="state {{ a.status }}">{{ a.status|replace('_',' ')|capitalize }}</span></td>
+          </tr>
+        {% else %}
+          <tr><td colspan="7" class="empty">
+            <strong>Nothing to show</strong>
+            {% if status %}No alerts with this disposition. Try another filter.{% else %}No alerts have been recorded yet.{% endif %}
+          </td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<div class="export-row" style="display:flex;gap:10px;flex-wrap:wrap;">
+  <a class="btn-quiet btn" href="/export/csv{{ '?status=' ~ status if status }}">Download CSV</a>
+  <a class="btn-quiet btn" href="/export/pdf{{ '?status=' ~ status if status }}">Download PDF</a>
 </div>
 {% endblock %}
